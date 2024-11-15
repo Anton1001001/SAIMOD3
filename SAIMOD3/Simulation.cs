@@ -21,7 +21,7 @@ public class Simulation
     private const int M1 = 10; // Batch size for type 1
     private const int M2 = 3; // Batch size for type 2
 
-    private const float MeanTransportTimeToMachine = 5f; // Transport time to machine
+    public float MeanTransportTimeToMachine = 2f; // Transport time to machine
     private const float VarianceTransportTimeToMachine = 1f;
 
     private const float MeanTransportTimeToExit = 10f; // Transport time to exit conveyor
@@ -35,6 +35,7 @@ public class Simulation
     private const float DetailProbability = 0.7f;
 
     public static List<float> AvgMachine1List = new();
+    public static List<double> AvgMachine1List_model = new();
 
     private float _dt;
     private float _avgDetailsMachine1;
@@ -103,9 +104,11 @@ public class Simulation
                     HandleTransportToExitEnd();
                     break;
             }
+            AvgMachine1List_model.Add(_avgDetailsMachine1 / _modelTime);
         }
         
         AvgMachine1List.Add(_avgDetailsMachine1/ TimeEndOfSimulation);
+       
 
     }
 

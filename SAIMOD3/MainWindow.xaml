@@ -3,9 +3,32 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:lvc="clr-namespace:LiveCharts.Wpf;assembly=LiveCharts.Wpf"
         Title="Гистограмма"
-        Height="450" Width="800">
+        Height="1000" Width="1400">
     <Grid>
-        <lvc:CartesianChart Name="MyChart">
+        <!-- Определяем строки для каждого графика: гистограмма, точечный график, линейный график 1, линейный график 2 -->
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <!-- Высокая строка для гистограммы -->
+            <RowDefinition Height="*" />
+            <!-- Средняя строка для точечного графика -->
+            <RowDefinition Height="*" />
+            <!-- Строка для первого линейного графика -->
+            <RowDefinition Height="*" />
+            <!-- Строка для второго линейного графика -->
+            <RowDefinition Height="*" />
+            <!-- Строка для третьего линейного графика -->
+        </Grid.RowDefinitions>
+
+        <!-- Определяем две колонки: для графиков и текстового блока -->
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="4*" />
+            <!-- Широкая колонка для графиков -->
+            <ColumnDefinition Width="1*" />
+            <!-- Узкая колонка для TextBlock -->
+        </Grid.ColumnDefinitions>
+
+        <!-- Гистограмма -->
+        <lvc:CartesianChart Name="MyChart" Grid.Row="0" Grid.Column="0">
             <lvc:CartesianChart.AxisX>
                 <lvc:Axis Title="Интервалы" />
             </lvc:CartesianChart.AxisX>
@@ -13,5 +36,56 @@
                 <lvc:Axis Title="Частота" />
             </lvc:CartesianChart.AxisY>
         </lvc:CartesianChart>
+
+        <!-- Точечный график -->
+        <lvc:CartesianChart Name="ScatterChart" Grid.Row="1" Grid.Column="0">
+            <lvc:CartesianChart.AxisX>
+                <lvc:Axis Title="Прогон" />
+            </lvc:CartesianChart.AxisX>
+            <lvc:CartesianChart.AxisY>
+                <lvc:Axis Title="Значения" />
+            </lvc:CartesianChart.AxisY>
+        </lvc:CartesianChart>
+
+        <!-- Первый линейный график (значения хи-квадрат) -->
+        <lvc:CartesianChart Name="LineChart" Grid.Row="2" Grid.Column="0">
+            <lvc:CartesianChart.AxisX>
+                <lvc:Axis Title="Индекс в списке" />
+            </lvc:CartesianChart.AxisX>
+            <lvc:CartesianChart.AxisY>
+                <lvc:Axis Title="Значение хи-квадрат" />
+            </lvc:CartesianChart.AxisY>
+        </lvc:CartesianChart>
+
+        <!-- Второй линейный график (значения sense) -->
+        <lvc:CartesianChart Name="LineChartSense" Grid.Row="3" Grid.Column="0">
+            <lvc:CartesianChart.AxisX>
+                <lvc:Axis Title="Индекс в списке" />
+            </lvc:CartesianChart.AxisX>
+            <lvc:CartesianChart.AxisY>
+                <lvc:Axis Title="Значение Sense" />
+            </lvc:CartesianChart.AxisY>
+        </lvc:CartesianChart>
+
+        <!-- Третий линейный график (значения sense) -->
+        <lvc:CartesianChart Name="LineChartDetailModel" Grid.Row="4" Grid.Column="0">
+            <lvc:CartesianChart.AxisX>
+                <lvc:Axis Title="Индекс в списке" />
+            </lvc:CartesianChart.AxisX>
+            <lvc:CartesianChart.AxisY>
+                <lvc:Axis Title="Значение Model" />
+            </lvc:CartesianChart.AxisY>
+        </lvc:CartesianChart>
+
+        <!-- Текстовый блок для вывода информации -->
+        <TextBlock x:Name="OutputTextBlock" 
+                   Grid.Column="1"
+                   Grid.RowSpan="5"
+                   VerticalAlignment="Top" 
+                   HorizontalAlignment="Left"
+                   TextWrapping="Wrap"
+                   Margin="10"
+                   Width="200"/>
     </Grid>
+
 </Window>
