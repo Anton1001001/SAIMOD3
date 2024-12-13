@@ -30,50 +30,48 @@
         <!-- Гистограмма -->
         <lvc:CartesianChart Name="MyChart" Grid.Row="0" Grid.Column="0">
             <lvc:CartesianChart.AxisX>
-                <lvc:Axis Title="Интервалы" />
+                <lvc:Axis Title="Count" />
             </lvc:CartesianChart.AxisX>
             <lvc:CartesianChart.AxisY>
-                <lvc:Axis Title="Частота" />
+                <lvc:Axis Title="Frequency" />
             </lvc:CartesianChart.AxisY>
         </lvc:CartesianChart>
 
         <!-- Точечный график -->
         <lvc:CartesianChart Name="ScatterChart" Grid.Row="1" Grid.Column="0">
             <lvc:CartesianChart.AxisX>
-                <lvc:Axis Title="Прогон" />
+                <lvc:Axis Title="Number" />
             </lvc:CartesianChart.AxisX>
             <lvc:CartesianChart.AxisY>
-                <lvc:Axis Title="Значения" />
+                <lvc:Axis Title="Mean" />
             </lvc:CartesianChart.AxisY>
         </lvc:CartesianChart>
 
-        <!-- Первый линейный график (значения хи-квадрат) -->
         <lvc:CartesianChart Name="LineChart" Grid.Row="2" Grid.Column="0">
             <lvc:CartesianChart.AxisX>
-                <lvc:Axis Title="Индекс в списке" />
+                <lvc:Axis Title="Count" />
             </lvc:CartesianChart.AxisX>
             <lvc:CartesianChart.AxisY>
-                <lvc:Axis Title="Значение хи-квадрат" />
+                <lvc:Axis Title="Error" />
             </lvc:CartesianChart.AxisY>
         </lvc:CartesianChart>
 
-        <!-- Второй линейный график (значения sense) -->
         <lvc:CartesianChart Name="LineChartSense" Grid.Row="3" Grid.Column="0">
             <lvc:CartesianChart.AxisX>
-                <lvc:Axis Title="Индекс в списке" />
+                <lvc:Axis Title="Count" />
             </lvc:CartesianChart.AxisX>
             <lvc:CartesianChart.AxisY>
-                <lvc:Axis Title="Значение Sense" />
+                <lvc:Axis Title="Sense" />
             </lvc:CartesianChart.AxisY>
         </lvc:CartesianChart>
 
         <!-- Третий линейный график (значения sense) -->
         <lvc:CartesianChart Name="LineChartDetailModel" Grid.Row="4" Grid.Column="0">
             <lvc:CartesianChart.AxisX>
-                <lvc:Axis Title="Индекс в списке" />
+                <lvc:Axis Title="Count" />
             </lvc:CartesianChart.AxisX>
             <lvc:CartesianChart.AxisY>
-                <lvc:Axis Title="Значение Model" />
+                <lvc:Axis Title="Model" />
             </lvc:CartesianChart.AxisY>
         </lvc:CartesianChart>
 

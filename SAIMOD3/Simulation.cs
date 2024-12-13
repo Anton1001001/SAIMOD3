@@ -5,7 +5,7 @@ public class Simulation
 {
     private List<Event?> _events = new();
     private float _modelTime;
-    private const float TimeEndOfSimulation = 20000f; // Time end of simulation
+    public float TimeEndOfSimulation = 20000f; // Time end of simulation
 
     private int _countType1; // Counter for type 1 parts
     private int _totalPartsType1;
@@ -21,7 +21,7 @@ public class Simulation
     private const int M1 = 10; // Batch size for type 1
     private const int M2 = 3; // Batch size for type 2
 
-    public float MeanTransportTimeToMachine = 2f; // Transport time to machine
+    private const float MeanTransportTimeToMachine = 1f; // Transport time to machine
     private const float VarianceTransportTimeToMachine = 1f;
 
     private const float MeanTransportTimeToExit = 10f; // Transport time to exit conveyor
@@ -32,9 +32,9 @@ public class Simulation
 
     private const float MeanExponential = 20f;
     
-    private const float DetailProbability = 0.7f;
+    public float DetailProbability = 0.7f;
 
-    public static List<float> AvgMachine1List = new();
+    public static List<double> AvgMachine1List = new();
     public static List<double> AvgMachine1List_model = new();
 
     private float _dt;

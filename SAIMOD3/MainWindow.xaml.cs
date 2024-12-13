@@ -6,6 +6,10 @@ using LiveCharts.Wpf;
 using MathNet.Numerics.Distributions;
 using LiveCharts.Defaults;
 using System.Windows.Media;
+using System;
+
+using MathNet.Numerics.Statistics;
+using System.Buffers;
 
 
 namespace SAIMOD3
@@ -17,25 +21,324 @@ namespace SAIMOD3
         {
             InitializeComponent();
 
-            // Выполняем 1000 симуляций для гистограммы
-            for (int i = 0; i < 1000; i++)
+            DisplayDistribution();
+            DisplayConfidanceInterval();
+            DisplaySense();
+            DisplayErorr();
+            DisplayTransition();
+
+            DisplayContinous();
+        }
+
+        private void DisplayDistribution()
+        {
+            RunSimulations(1000);
+            var averageMachineTimes = Simulation.AvgMachine1List;
+            var count = 1 + Math.Floor(Math.Log(averageMachineTimes.Count, 2));
+            Histogram(averageMachineTimes, 4, 5, (int)count);
+            AppendOutput($"{KolmogorovSmirnovTest(averageMachineTimes)}"+"\n");
+        }
+
+        private void DisplayConfidanceInterval()
+        {
+            RunSimulations(10);
+            var averageMachineTimes = Simulation.AvgMachine1List;
+            var confidenceInterval = CalculateConfidenceInterval(averageMachineTimes);
+
+            AppendOutput($"Среднее значение: {confidenceInterval.Item3}");
+            AppendOutput($"95% Доверительный интервал: ({confidenceInterval.Item1}, {confidenceInterval.Item2})");
+            AppendOutput($"Стандартное отклонение: {Math.Sqrt(averageMachineTimes.Sum(x => Math.Pow(x - confidenceInterval.Item3, 2)) / (averageMachineTimes.Count - 1))}" + "\n");
+
+            PlotScatterChart(confidenceInterval, averageMachineTimes);
+        }
+
+        private void DisplaySense()
+        {
+            List<double> senseValues = new();
+
+            //for (int i = 0; i < 2; i++)
+            //{
+            RunSimulations(1, 0.6f);
+            double avr6 = Simulation.AvgMachine1List.Average();
+            
+            senseValues.Add(avr6);
+                
+            RunSimulations(1, DetailProbability: 0.69f);
+            avr6 = Simulation.AvgMachine1List.Average();
+            senseValues.Add(avr6);
+            RunSimulations(1, DetailProbability: 0.7f);
+            avr6 = Simulation.AvgMachine1List.Average();
+            senseValues.Add(avr6);
+            RunSimulations(1, DetailProbability: 0.71f);
+            avr6 = Simulation.AvgMachine1List.Average();
+            senseValues.Add(avr6);
+            RunSimulations(1, DetailProbability: 0.8f);
+            avr6 = Simulation.AvgMachine1List.Average();
+            senseValues.Add(avr6);
+            //}
+
+            PlotLineChart("Sense", senseValues, LineChartSense);
+        }
+
+        private void DisplayErorr()
+        {
+            List<double> errorValues = new();
+            for (int i = 2; i < 100; i++)
             {
-                Simulation simulation = new Simulation();
-                simulation.Run();
+                RunSimulations(i);
+                var data = Simulation.AvgMachine1List;
+                data = data.Select(x => (x - 4) * 10).ToList();
+                double mean = data.Average();
+                double variance = data.Select(x => Math.Pow(x - mean, 2)).Sum() / data.Count(); // делим на количество, чтобы получить дисперсию
+                double standardDeviation = Math.Sqrt(variance); // стандартное отклонение
+                double standardError = standardDeviation / Math.Sqrt(data.Count()); // стандартная ошибка
+                errorValues.Add(standardError); // добавляем стандартную ошибку
             }
 
-            var averageMachineTimes = Simulation.AvgMachine1List;
-            InitializeHistogram(averageMachineTimes, 4, 5, 20);
-            CalculateAndDisplayStatistics(averageMachineTimes);
-            InitializeChartsWithIntervals();
+
+            PlotLineChart("Error", errorValues, LineChart);
+        }
+
+        private void DisplayTransition()
+        {
+
+            RunSimulations(1);
+            var transitionList = Simulation.AvgMachine1List_model;
+            var TransitionEnd = FindTransitionEnd(transitionList, 0.001, 50);
+            AppendOutput("End of transition: " + TransitionEnd.ToString());
+
+            PlotLineChart("Transition", transitionList.Take(200).ToList(), LineChartDetailModel);
+
+            List<double> meanLong = new();
+            List<double> meanShort = new();
+            for ( int i = 0; i < 15; i++ )
+            {
+      
+                RunSimulations(1, 0.7f, 20000.0f);
+                var sampleY1 = Simulation.AvgMachine1List_model;
+                var TransitionEndY1 = FindTransitionEnd(sampleY1, 0.001, 50);
+                sampleY1 = sampleY1.Skip(TransitionEndY1).ToList();
+                meanLong.Add(sampleY1.Average());
+
+                RunSimulations(1, 0.7f, 5000.0f);
+                var sampleY2 = Simulation.AvgMachine1List_model;
+                var TransitionEndY2 = FindTransitionEnd(sampleY2, 0.001, 50);
+                sampleY2 = sampleY2.Skip(TransitionEndY2).ToList();
+                meanShort.Add(sampleY2.Average());
+            }
 
 
+            double tStatistic = TTest(meanLong, meanShort);
+            AppendOutput($"t-Statistic: {tStatistic}");
 
+            int dfTTest = meanLong.Count + meanShort.Count - 2;
+            double alpha = 0.05;
+            double tCritical = GetTCriticalValue(alpha, dfTTest);
+            AppendOutput($"Критическое значение t: {tCritical}");
+
+            if (Math.Abs(tStatistic) > tCritical)
+            {
+                AppendOutput("Отвергаем гипотезу о равенстве средних.");
+            }
+            else
+            {
+                AppendOutput("Не отвергаем гипотезу о равенстве средних.");
+            }
+
+            double fStatistic = FisherTest(meanLong, meanShort);
+            AppendOutput($"F-Statistic: {fStatistic}");
+
+            int df1 = meanLong.Count - 1;
+            int df2 = meanShort.Count - 1;
+            double fCritical = GetFCriticalValue(alpha, df1, df2);
+            AppendOutput($"Критическое значение F: {fCritical}");
+
+            if (fStatistic > fCritical)
+            {
+                AppendOutput("Отвергаем гипотезу о равенстве дисперсий.\n");
+            }
+            else
+            {
+                AppendOutput("Не отвергаем гипотезу о равенстве дисперсий.\n");
+            }
 
         }
 
-        // Метод инициализации гистограммы
-        private void InitializeHistogram(List<float> data, double minRange, double maxRange, int intervalCount)
+        private void DisplayContinous()
+        {
+            List<double> newModel = new List<double>();
+            for (int i = 0; i < 4; i++)
+            {
+                RunSimulations(1, 0.7f, 5000.0f);
+                var sampleY1 = Simulation.AvgMachine1List_model;
+                var TransitionEndY1 = FindTransitionEnd(sampleY1, 0.001, 50);
+                sampleY1 = sampleY1.Skip(TransitionEndY1).ToList();
+                newModel.AddRange(sampleY1);
+            }
+
+            RunSimulations(1, 0.7f, 5000.0f);
+            var oldModel = Simulation.AvgMachine1List_model;
+            double tStatistic = TTest(newModel, oldModel);
+            AppendOutput($"t-Statistic: {tStatistic}");
+
+            int dfTTest = newModel.Count + oldModel.Count - 2;
+            double alpha = 0.05;
+            double tCritical = GetTCriticalValue(alpha, dfTTest);
+            AppendOutput($"Критическое значение t: {tCritical}");
+
+            if (Math.Abs(tStatistic) > tCritical)
+            {
+                AppendOutput("Отвергаем гипотезу о равенстве средних.");
+            }
+            else
+            {
+                AppendOutput("Не отвергаем гипотезу о равенстве средних.");
+            }
+
+            double fStatistic = FisherTest(newModel, oldModel);
+            AppendOutput($"F-Statistic: {fStatistic}");
+
+            int df1 = newModel.Count - 1;
+            int df2 = oldModel.Count - 1;
+            double fCritical = GetFCriticalValue(alpha, df1, df2);
+            AppendOutput($"Критическое значение F: {fCritical}");
+
+            if (fStatistic > fCritical)
+            {
+                AppendOutput("Отвергаем гипотезу о равенстве дисперсий.\n");
+            }
+            else
+            {
+                AppendOutput("Не отвергаем гипотезу о равенстве дисперсий.\n");
+            }
+        }
+
+        //Calculations
+        private Tuple<double, double, double> CalculateConfidenceInterval(List<double> data)
+        {
+            double alpha = 0.05;
+            int sampleSize = data.Count;
+            double mean = data.Average();
+            double stdDev = Math.Sqrt(data.Sum(value => Math.Pow(value - mean, 2)) / (sampleSize - 1));
+
+            double tCritical = GetTCriticalValue(sampleSize - 1, alpha);
+            double marginOfError = tCritical * (stdDev / Math.Sqrt(sampleSize));
+            double lowerBound = mean - marginOfError;
+            double upperBound = mean + marginOfError;
+
+            return Tuple.Create(lowerBound, upperBound, mean);
+        }
+
+        private double GetTCriticalValue(int degreesOfFreedom, double alpha)
+        {
+            return StudentT.InvCDF(0, 1, degreesOfFreedom, 1 - alpha / 2);
+        }
+
+        private int FindTransitionEnd(List<double> responses, double epsilon, int windowSize)
+        {
+            for (int i = windowSize; i < responses.Count; i++)
+            {
+                double average = responses.Skip(i - windowSize).Take(windowSize).Average();
+
+                if (Math.Abs(responses[i] - average) <= epsilon)
+                {
+                    return i;
+                }
+            }
+
+            return -1;
+        }
+
+        public static string KolmogorovSmirnovTest(List<double> data, double alpha = 0.05)
+        {
+            var sortedData = data.OrderBy(x => x).ToArray();
+            var n = data.Count();
+            double statistic = 0;
+
+            var mean = data.Mean();
+            var stdDev = data.StandardDeviation();
+            Normal normalDistribution = new Normal(mean, stdDev);
+
+            for (int i = 0; i < n; i++)
+            {
+                double empiricalCdf = (i + 1) / (double)n;
+                double theoreticalCdf = normalDistribution.CumulativeDistribution(sortedData[i]);
+                statistic = Math.Max(statistic, Math.Abs(empiricalCdf - theoreticalCdf));
+            }
+
+            double dCritical = CriticalValueKS(alpha, n);
+
+            string result = statistic <= dCritical
+                ? $"Распределение можно считать нормальным. D = {statistic:F4}, D_critical = {dCritical:F4}, α = {alpha}"
+                : $"Распределение ненормальное. D = {statistic:F4}, D_critical = {dCritical:F4}, α = {alpha}";
+
+            return result;
+        }
+
+        private static double CriticalValueKS(double alpha, int n)
+        {
+            return 1.2239 - 0.17 / Math.Sqrt(n);
+        }
+
+        public static double GetTCriticalValue(double alpha, int df)
+        {
+            var tDist = new StudentT(0, 1, df);
+            return tDist.InverseCumulativeDistribution(1 - alpha / 2);
+        }
+
+        public static double GetFCriticalValue(double alpha, int df1, int df2)
+        {
+            var fDist = new FisherSnedecor(df1, df2);
+            return fDist.InverseCumulativeDistribution(1 - alpha / 2); // Двусторонний тест
+        }
+
+        public static double TTest(List<double> sample1, List<double> sample2)
+        {
+            double mean1 = sample1.Average();
+            double mean2 = sample2.Average();
+            double var1 = sample1.Sum(x => Math.Pow(x - mean1, 2)) / (sample1.Count - 1);
+            double var2 = sample2.Sum(x => Math.Pow(x - mean2, 2)) / (sample2.Count - 1);
+
+            double n1 = sample1.Count;
+            double n2 = sample2.Count;
+
+            double t = (mean1 - mean2) / Math.Sqrt((var1 / n1) + (var2 / n2));
+            return t;
+        }
+
+        public static double FisherTest(List<double> sample1, List<double> sample2)
+        {
+            double mean1 = sample1.Average();
+            double mean2 = sample2.Average();
+            double var1 = sample1.Sum(x => Math.Pow(x - mean1, 2)) / (sample1.Count - 1);
+            double var2 = sample2.Sum(x => Math.Pow(x - mean1, 2)) / (sample2.Count - 1);
+
+            double fStatistic = var1 > var2 ? var1 / var2 : var2 / var1;
+            return fStatistic;
+        }
+
+
+        //
+        private void RunSimulations(int count, float DetailProbability = 0.7f, float TimeEndOfSimulation = 20000.0f)
+        {
+            Simulation.AvgMachine1List.Clear();
+            Simulation.AvgMachine1List_model.Clear();
+
+            for (int i = 0; i < count; i++)
+            {
+                var simulation = new Simulation { DetailProbability = DetailProbability, TimeEndOfSimulation = TimeEndOfSimulation };
+                simulation.Run();
+            }
+        }
+
+        private void AppendOutput(string text)
+        {
+            OutputTextBlock.Text += text + Environment.NewLine;
+        }
+
+
+        //Graphs
+        private void Histogram(List<double> data, double minRange, double maxRange, int intervalCount)
         {
             double intervalWidth = (data.Max() - data.Min()) / intervalCount;
 
@@ -53,64 +356,49 @@ namespace SAIMOD3
             {
                 new ColumnSeries
                 {
-                    Title = "Гистограмма",
+                    Title = "Distribution",
                     Values = new ChartValues<int>(intervalFrequencies)
                 }
             };
         }
 
-        // Метод инициализации графиков с доверительными интервалами и тестом χ²
-        private void InitializeChartsWithIntervals()
+        private void PlotScatterChart(Tuple<double, double, double> intervalStatistics, List<double> mean)
         {
-            List<Tuple<double, double, double>> intervalStatistics = new();
-            List<double> chiSquareValues = new();
-
-            for (int i = 0; i < 30; i++)
-            {
-                RunSimulations(i * 10);
-                var confidenceInterval = CalculateConfidenceInterval(Simulation.AvgMachine1List);
-                intervalStatistics.Add(confidenceInterval);
-                chiSquareValues.Add(CalculateChiSquare(Simulation.AvgMachine1List, false));
-                Simulation.AvgMachine1List.Clear();
-                Simulation.AvgMachine1List_model.Clear();
-            }
-
-            PlotScatterChart(intervalStatistics);
-            PlotLineChart("Chi-Square", chiSquareValues, LineChart);
-
-            // Дополнительный график для значений 'sense'
-            PlotSenseChart();
-
-            RunSimulations(1);
-            var transitionList = Simulation.AvgMachine1List_model;
-            DisplayTransition(transitionList);
-            PlotLineChart("ere", transitionList.Take(1000).ToList(), LineChartDetailModel);
-            Simulation.AvgMachine1List.Clear();
-            Simulation.AvgMachine1List_model.Clear();
-        }
-
-        private void PlotScatterChart(List<Tuple<double, double, double>> intervalStatistics)
-        {
-            var lowerUpperPoints = new ChartValues<ObservablePoint>();
+            var lowerLinePoints = new ChartValues<ObservablePoint>();
+            var upperLinePoints = new ChartValues<ObservablePoint>();
             var meanPoints = new ChartValues<ObservablePoint>();
 
-            for (int i = 0; i < intervalStatistics.Count; i++)
+            var lowerBound1 = intervalStatistics.Item1;
+            var upperBound2 = intervalStatistics.Item2;
+
+            lowerLinePoints.Add(new ObservablePoint(0, lowerBound1));
+            lowerLinePoints.Add(new ObservablePoint(mean.Count - 1, lowerBound1));
+
+            upperLinePoints.Add(new ObservablePoint(0, upperBound2));
+            upperLinePoints.Add(new ObservablePoint(mean.Count - 1, upperBound2));
+
+            for (int i = 0; i < mean.Count; i++)
             {
-                var (lowerBound, upperBound, mean) = intervalStatistics[i];
-                lowerUpperPoints.Add(new ObservablePoint(i, lowerBound));
-                lowerUpperPoints.Add(new ObservablePoint(i, upperBound));
-                meanPoints.Add(new ObservablePoint(i, mean));
+                meanPoints.Add(new ObservablePoint(i, mean[i]));
             }
 
             ScatterChart.Series = new SeriesCollection
             {
-                new ScatterSeries
+                new LineSeries
                 {
-                    Values = lowerUpperPoints,
-                    MinPointShapeDiameter = 5,
-                    MaxPointShapeDiameter = 5,
-                    Fill = Brushes.Red
+                    Values = lowerLinePoints,
+                    StrokeThickness = 2,
+                    Fill = Brushes.Transparent,
+                    Stroke = Brushes.Red
                 },
+                new LineSeries
+                {
+                    Values = upperLinePoints,
+                    StrokeThickness = 2,
+                    Fill = Brushes.Transparent,
+                    Stroke = Brushes.Red
+                },
+
                 new ScatterSeries
                 {
                     Values = meanPoints,
@@ -123,8 +411,26 @@ namespace SAIMOD3
 
         private void PlotLineChart(string title, List<double> values, CartesianChart chart)
         {
+
+            var meanLinePoints = new ChartValues<ObservablePoint>();
+
+            var meanLine = values.Average();
+
+
+            meanLinePoints.Add(new ObservablePoint(0, meanLine));
+            meanLinePoints.Add(new ObservablePoint(values.Count - 1, meanLine));
+
+
             chart.Series = new SeriesCollection
             {
+                /*                new LineSeries
+                {
+                    Values = meanLinePoints,
+                    StrokeThickness = 2,
+                    Fill = Brushes.Transparent, // Убираем заливку
+                    Stroke = Brushes.Red // Делаем линию красной
+                },*/
+
                 new LineSeries
                 {
                     Title = title,
@@ -133,148 +439,9 @@ namespace SAIMOD3
                     PointGeometrySize = 8,
                     Stroke = Brushes.Blue,
                     Fill = Brushes.Transparent
-                }
+                },
+
             };
-        }
-
-        private void PlotSenseChart()
-        {
-            List<double> senseValues = new();
-
-            for (int i = 0; i < 100; i++)
-            {
-                RunSimulations(i + 1, transportTimeMultiplier: 2 * (i + 1));
-                senseValues.Add(Simulation.AvgMachine1List.Average());
-                Simulation.AvgMachine1List.Clear();
-            }
-
-            PlotLineChart("Sense", senseValues, LineChartSense);
-        }
-
-        private void RunSimulations(int count, int transportTimeMultiplier = 2)
-        {
-            for (int i = 0; i < count; i++)
-            {
-                var simulation = new Simulation { MeanTransportTimeToMachine = transportTimeMultiplier };
-                simulation.Run();
-            }
-        }
-
-
-        private Tuple<double, double, double> CalculateConfidenceInterval(List<float> data)
-        {
-            double alpha = 0.05;
-            int sampleSize = data.Count;
-            double mean = data.Average();
-            double stdDev = Math.Sqrt(data.Sum(value => Math.Pow(value - mean, 2)) / (sampleSize - 1));
-
-            double tCritical = GetTCriticalValue(sampleSize - 1, alpha);
-            double marginOfError = tCritical * (stdDev / Math.Sqrt(sampleSize));
-            double lowerBound = mean - marginOfError;
-            double upperBound = mean + marginOfError;
-
-            return Tuple.Create(lowerBound, upperBound, mean);
-        }
-
-        private double CalculateChiSquare(List<float> data, bool displayText)
-        {
-            int sampleSize = data.Count;
-            double mean = data.Average();
-            double stdDev = Math.Sqrt(data.Sum(value => Math.Pow(value - mean, 2)) / (sampleSize - 1));
-            int intervalCount = (int)Math.Ceiling(Math.Sqrt(sampleSize));
-            double intervalWidth = (data.Max() - data.Min()) / intervalCount;
-
-            double chiSquareStatistic = 0;
-            for (int i = 0; i < intervalCount; i++)
-            {
-                double lowerBound = data.Min() + i * intervalWidth;
-                double upperBound = lowerBound + intervalWidth;
-                int observedCount = data.Count(value => value >= lowerBound && value < upperBound);
-                double expectedCount = sampleSize * (Normal.CDF(mean, stdDev, upperBound) - Normal.CDF(mean, stdDev, lowerBound));
-                chiSquareStatistic += Math.Pow(observedCount - expectedCount, 2) / expectedCount;
-            }
-
-            if (displayText)
-            {
-                DisplayChiSquareResults(chiSquareStatistic, intervalCount - 3);
-            }
-
-            return chiSquareStatistic;
-        }
-
-        private void DisplayChiSquareResults(double chiSquareStatistic, int degreesOfFreedom)
-        {
-            double criticalValue = ChiSquared.InvCDF(degreesOfFreedom, 0.95);
-            AppendOutput($"χ² статистика: {chiSquareStatistic}");
-            AppendOutput($"Критическое значение χ²: {criticalValue}");
-            AppendOutput(chiSquareStatistic < criticalValue
-                ? "Не удалось отклонить гипотезу о нормальности распределения."
-                : "Гипотеза о нормальности распределения отклонена.");
-        }
-
-        private double GetTCriticalValue(int degreesOfFreedom, double alpha)
-        {
-            return StudentT.InvCDF(0, 1, degreesOfFreedom, 1 - alpha / 2);
-        }
-
-        private void AppendOutput(string text)
-        {
-            OutputTextBlock.Text += text + Environment.NewLine;
-        }
-
-        private void CalculateAndDisplayStatistics(List<float> data)
-        {
-            var confidenceInterval = CalculateConfidenceInterval(data);
-            AppendOutput($"Среднее значение: {confidenceInterval.Item3}");
-            AppendOutput($"95% Доверительный интервал: ({confidenceInterval.Item1}, {confidenceInterval.Item2})");
-            AppendOutput($"Стандартное отклонение: {Math.Sqrt(data.Sum(x => Math.Pow(x - confidenceInterval.Item3, 2)) / (data.Count - 1))}");
-
-            CalculateChiSquare(data, true);
-        }
-
-        private void DisplayTransition(List<double> data)
-        {
-            // Считаем переходный период как первые 20% времени
-            int transitionPeriod = (int)(data.Count * 0.2);
-
-            // Данные до переходного периода
-            var beforeTransition = data.Take(transitionPeriod).ToList();
-            // Данные после переходного периода
-            var afterTransition = data.Skip(transitionPeriod).ToList();
-
-            // Сравниваем среднее значение до и после переходного периода
-            double meanBefore = beforeTransition.Average();
-            double meanAfter = afterTransition.Average();
-
-            // Выполняем t-тест для проверки гипотезы о снижении времени
-            double tStatistic = CalculateTTest(beforeTransition, afterTransition);
-
-            // Выводим результаты
-            AppendOutput($"Среднее время до переходного периода: {meanBefore}");
-            AppendOutput($"Среднее время после переходного периода: {meanAfter}");
-            AppendOutput($"t-статистика: {tStatistic}");
-
-            if (tStatistic > 1.96) // 95% доверительный интервал
-            {
-                AppendOutput("Гипотеза о снижении времени прогона подтверждается.");
-            }
-            else
-            {
-                AppendOutput("Нет статистически значимого снижения времени.");
-            }
-        }
-
-        private double CalculateTTest(List<double> before, List<double> after)
-        {
-            double meanBefore = before.Average();
-            double meanAfter = after.Average();
-            double varBefore = before.Select(v => Math.Pow(v - meanBefore, 2)).Sum() / (before.Count - 1);
-            double varAfter = after.Select(v => Math.Pow(v - meanAfter, 2)).Sum() / (after.Count - 1);
-
-            double pooledVariance = ((before.Count - 1) * varBefore + (after.Count - 1) * varAfter) / (before.Count + after.Count - 2);
-            double standardError = Math.Sqrt(pooledVariance * (1.0 / before.Count + 1.0 / after.Count));
-
-            return Math.Abs(meanBefore - meanAfter) / standardError;
         }
     }
 }
