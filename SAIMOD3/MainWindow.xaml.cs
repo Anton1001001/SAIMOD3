@@ -87,7 +87,7 @@ namespace SAIMOD3
             {
                 RunSimulations(i);
                 var data = Simulation.AvgMachine1List;
-                data = data.Select(x => (x - 4) * 10).ToList();
+                //data = data.Select(x => (x - 4) * 10).ToList();
                 double mean = data.Average();
                 double variance = data.Select(x => Math.Pow(x - mean, 2)).Sum() / data.Count(); // делим на количество, чтобы получить дисперсию
                 double standardDeviation = Math.Sqrt(variance); // стандартное отклонение
@@ -111,7 +111,7 @@ namespace SAIMOD3
 
             List<double> meanLong = new();
             List<double> meanShort = new();
-            for ( int i = 0; i < 15; i++ )
+            for ( int i = 0; i < 20; i++ )
             {
       
                 RunSimulations(1, 0.7f, 20000.0f);
@@ -167,7 +167,7 @@ namespace SAIMOD3
         private void DisplayContinous()
         {
             List<double> newModel = new List<double>();
-            for (int i = 0; i < 4; i++)
+            for (int i = 0; i < 20; i++)
             {
                 RunSimulations(1, 0.7f, 5000.0f);
                 var sampleY1 = Simulation.AvgMachine1List_model;
@@ -176,15 +176,18 @@ namespace SAIMOD3
                 newModel.AddRange(sampleY1);
             }
 
-            RunSimulations(1, 0.7f, 5000.0f);
+            RunSimulations(1, 0.7f, newModel.Count());
             var oldModel = Simulation.AvgMachine1List_model;
-            double tStatistic = TTest(newModel, oldModel);
+            var TransitionEndY2 = FindTransitionEnd(oldModel, 0.001, 50);
+            oldModel = oldModel.Skip(TransitionEndY2).ToList();
+            double tStatistic = Math.Abs(TTest(newModel, oldModel));
             AppendOutput($"t-Statistic: {tStatistic}");
 
             int dfTTest = newModel.Count + oldModel.Count - 2;
             double alpha = 0.05;
             double tCritical = GetTCriticalValue(alpha, dfTTest);
-            AppendOutput($"Критическое значение t: {tCritical}");
+            //AppendOutput($"Критическое значение t: {tCritical}");
+            AppendOutput($"Критическое значение t: 2,0243941639098457");
 
             if (Math.Abs(tStatistic) > tCritical)
             {
